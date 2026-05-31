@@ -1,0 +1,154 @@
+<style>
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+.qg-field label{display:block;font-size:13px;color:var(--color-text-secondary);margin-bottom:6px}
+.qg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.qg-row{display:flex;align-items:center;gap:10px}
+.qg-row span.val{font-size:14px;font-weight:500;min-width:46px;text-align:right}
+.qg-seg button{flex:1;padding:8px;font-size:13px}
+.qg-seg button.on{border-color:var(--color-border-info);background:var(--color-background-info);color:var(--color-text-info)}
+.qg-card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px 14px}
+.qg-card .k{font-size:12px;color:var(--color-text-secondary)}
+.qg-card .v{font-size:20px;font-weight:500;margin-top:2px}
+</style>
+<h2 class="sr-only">An interactive calculator for the Quantum Exposure Score, where you adjust algorithm, exposure, data lifetime and threat horizon to see the resulting 0 to 100 score and priority band.</h2>
+
+<div style="padding:1rem 0;">
+  <div class="qg-seg qg-row" style="margin-bottom:1.25rem;">
+    <button id="trk-conf" class="on" onclick="setTrack('conf')">Confidentiality (HNDL)</button>
+    <button id="trk-auth" onclick="setTrack('auth')">Authentication (forge-later)</button>
+  </div>
+
+  <div class="qg-grid" style="margin-bottom:1.25rem;">
+    <div class="qg-field">
+      <label>Algorithm class → V<sub>alg</sub></label>
+      <select id="alg">
+        <option value="1.0">RSA / ECC / DH / DSA (Shor-broken)</option>
+        <option value="1.0">Unknown / proprietary / none</option>
+        <option value="0.30">AES-128 / 3DES / SHA-256 collision</option>
+        <option value="0.05">AES-256 / SHA-384+ / SHA-3</option>
+        <option value="0.10">Classical + PQC hybrid</option>
+        <option value="0.0">Pure PQC (ML-KEM / ML-DSA)</option>
+      </select>
+    </div>
+    <div class="qg-field">
+      <label id="lbl-exp">Exposure / harvestability → E</label>
+      <select id="exp">
+        <option value="1.0">Public-internet facing</option>
+        <option value="0.70">Cloud-at-rest / partner link</option>
+        <option value="0.40">Internal network only</option>
+        <option value="0.15">Air-gapped / isolated</option>
+      </select>
+    </div>
+    <div class="qg-field">
+      <label>Business impact → Impact</label>
+      <select id="imp">
+        <option value="1.0">Regulated PII / keys / root trust</option>
+        <option value="0.70">Confidential data</option>
+        <option value="0.40">Internal operational</option>
+        <option value="0.10">Public / non-sensitive</option>
+      </select>
+    </div>
+    <div class="qg-field">
+      <label>Migration effort → Y (years)</label>
+      <select id="ytier">
+        <option value="0.5">Config / cert reissue (0.5y)</option>
+        <option value="1.5">App / library upgrade (1.5y)</option>
+        <option value="3.0">Protocol / PKI change (3y)</option>
+        <option value="5.0">Hardware / HSM / 3rd-party (5y)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="qg-field" style="margin-bottom:1rem;">
+    <label id="lbl-x">Data shelf-life X — years secrecy required</label>
+    <div class="qg-row"><input type="range" id="x" min="0" max="30" step="1" value="15" style="flex:1"><span class="val" id="x-out">15 y</span></div>
+  </div>
+  <div class="qg-field" style="margin-bottom:1.25rem;">
+    <label>Years until a quantum computer breaks today's crypto — Z (threat horizon)</label>
+    <div class="qg-row"><input type="range" id="z" min="2" max="20" step="1" value="9" style="flex:1"><span class="val" id="z-out">9 y</span></div>
+  </div>
+
+  <details style="margin-bottom:1.5rem;">
+    <summary style="font-size:13px;color:var(--color-text-secondary);cursor:pointer;">Weights (w<sub>T</sub> · w<sub>I</sub> · w<sub>E</sub>) — auto-normalized</summary>
+    <div style="margin-top:12px;display:grid;gap:10px;">
+      <div class="qg-row"><label style="font-size:13px;width:130px;color:var(--color-text-secondary)">Timing w<sub>T</sub></label><input type="range" id="wt" min="0" max="100" step="5" value="50" style="flex:1"><span class="val" id="wt-out">0.50</span></div>
+      <div class="qg-row"><label style="font-size:13px;width:130px;color:var(--color-text-secondary)">Impact w<sub>I</sub></label><input type="range" id="wi" min="0" max="100" step="5" value="30" style="flex:1"><span class="val" id="wi-out">0.30</span></div>
+      <div class="qg-row"><label style="font-size:13px;width:130px;color:var(--color-text-secondary)">Exposure w<sub>E</sub></label><input type="range" id="we" min="0" max="100" step="5" value="20" style="flex:1"><span class="val" id="we-out">0.20</span></div>
+    </div>
+  </details>
+
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:1.25rem;padding:1rem 1.25rem;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);">
+    <div style="flex:0 0 auto;text-align:center;">
+      <div style="font-size:48px;font-weight:500;line-height:1;" id="qes">95</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-top:4px;">QES / 100</div>
+    </div>
+    <div style="flex:1;">
+      <div id="band" style="display:inline-block;font-size:14px;font-weight:500;padding:5px 14px;border-radius:var(--border-radius-md);">CRITICAL</div>
+      <div id="rationale" style="font-size:13px;color:var(--color-text-secondary);margin-top:8px;line-height:1.5;"></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;">
+    <div class="qg-card"><div class="k">V<sub>alg</sub> gate</div><div class="v" id="o-valg">1.0</div></div>
+    <div class="qg-card"><div class="k">Mosca gap G = X+Y−Z</div><div class="v" id="o-g">8.0 y</div></div>
+    <div class="qg-card"><div class="k">Timing T</div><div class="v" id="o-t">0.93</div></div>
+  </div>
+</div>
+
+<script>
+var track='conf';
+function setTrack(t){
+  track=t;
+  document.getElementById('trk-conf').classList.toggle('on',t==='conf');
+  document.getElementById('trk-auth').classList.toggle('on',t==='auth');
+  document.getElementById('lbl-x').textContent = t==='conf' ? 'Data shelf-life X — years secrecy required' : 'Trust / validity lifetime X — years key must stay unforgeable';
+  document.getElementById('lbl-exp').textContent = t==='conf' ? 'Exposure / harvestability → E' : 'Forgeability exposure → E';
+  recompute();
+}
+function band(s){
+  if(s>=80) return ['CRITICAL','#FCEBEB','#A32D2D'];
+  if(s>=60) return ['HIGH','#FAECE7','#993C1D'];
+  if(s>=35) return ['MEDIUM','#FAEEDA','#854F0B'];
+  if(s>=15) return ['LOW','#E6F1FB','#0C447C'];
+  return ['NEGLIGIBLE','#EAF3DE','#3B6D11'];
+}
+function recompute(){
+  var valg=parseFloat(document.getElementById('alg').value);
+  var e=parseFloat(document.getElementById('exp').value);
+  var imp=parseFloat(document.getElementById('imp').value);
+  var y=parseFloat(document.getElementById('ytier').value);
+  var x=parseFloat(document.getElementById('x').value);
+  var z=parseFloat(document.getElementById('z').value);
+  var wt=parseFloat(document.getElementById('wt').value);
+  var wi=parseFloat(document.getElementById('wi').value);
+  var we=parseFloat(document.getElementById('we').value);
+  var ws=wt+wi+we; if(ws===0){ws=1;}
+  var nt=wt/ws, ni=wi/ws, ne=we/ws;
+  document.getElementById('x-out').textContent=Math.round(x)+' y';
+  document.getElementById('z-out').textContent=Math.round(z)+' y';
+  document.getElementById('wt-out').textContent=nt.toFixed(2);
+  document.getElementById('wi-out').textContent=ni.toFixed(2);
+  document.getElementById('we-out').textContent=ne.toFixed(2);
+  var g=x+y-z;
+  var t=1/(1+Math.exp(-g/3));
+  var qes=Math.round(100*valg*(nt*t+ni*imp+ne*e));
+  document.getElementById('qes').textContent=qes;
+  document.getElementById('o-valg').textContent=valg.toFixed(2);
+  document.getElementById('o-g').textContent=g.toFixed(1)+' y';
+  document.getElementById('o-t').textContent=t.toFixed(2);
+  var b=band(qes);
+  var bd=document.getElementById('band');
+  bd.textContent=b[0]; bd.style.background=b[1]; bd.style.color=b[2];
+  var r;
+  if(valg<0.06) r='Algorithm is quantum-resistant — the gate collapses quantum risk to near zero regardless of exposure or value.';
+  else if(g>0) r='Protection need outlasts the threat horizon (G > 0): '+(track==='conf'?'data harvested today is worth decrypting later.':'the key is still trusted when forgery becomes feasible.');
+  else r='Protection need ends before the threat horizon (G < 0): lower urgency, but a broken algorithm keeps it on the radar.';
+  document.getElementById('rationale').textContent=r;
+}
+['alg','exp','imp','ytier','x','z','wt','wi','we'].forEach(function(id){
+  var el=document.getElementById(id);
+  el.addEventListener('input',recompute);
+  el.addEventListener('change',recompute);
+});
+recompute();
+</script>
