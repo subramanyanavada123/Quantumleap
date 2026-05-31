@@ -1,0 +1,5 @@
+fastapi
+qiskit
+qiskit-aer
+fips203
+uvicorn
